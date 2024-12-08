@@ -61,7 +61,7 @@ WHERE average_income_calc.average_income < average_income_all.average_income_all
 ORDER BY average_income;
 
 -- подсчет информации о выручке по дням недели
-
+--
 WITH day_of_week_income as(
     SELECT
         first_name || ' ' || last_name AS seller,
