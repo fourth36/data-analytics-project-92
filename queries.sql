@@ -82,7 +82,7 @@ sum_table as(
         seller,
         day_of_week_number,
         day_of_week_text,
-        SUM(day_of_week_income) OVER(PARTITION BY seller, day_of_week_number) AS income
+        FLOOR(SUM(day_of_week_income) OVER(PARTITION BY seller, day_of_week_number)) AS income
     FROM day_of_week_income
 )
 
