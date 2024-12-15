@@ -148,7 +148,7 @@ count_sum AS(
 SELECT
     selling_month,
     total_customers,
-    income
+    floor(income) AS income
 FROM count_sum
 WHERE rn = 1;
 
