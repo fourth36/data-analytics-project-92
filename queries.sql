@@ -95,3 +95,94 @@ SELECT
 GROUP BY seller, day_of_week, income, day_of_week_number
 ORDER BY day_of_week_number, seller;
 
+-- количество покупателей в разных возрастных группах: 16-25, 26-40 и 40+
+--
+WITH age_category_table AS (
+    SELECT
+        first_name || ' ' || last_name AS customer,
+        CASE
+    	    WHEN age >= 16 AND age < 26 THEN '16-25'
+    	    WHEN age >= 26 AND age <=40 THEN '26-40'
+    	    WHEN age > 40 THEN '40+'
+    	    ELSE '16-'
+        END AS age_category
+    FROM customers
+)
+
+SELECT
+    age_category,
+    count(customer) AS age_count
+FROM age_category_table
+GROUP BY age_category
+ORDER BY age_category;
+
+--подсчет количества уникальных покупателей и их выручки
+--
+WITH customers_loss AS(
+    SELECT
+        c.first_name || ' ' || c.last_name AS customer,
+        SUM(s.quantity*p.price) AS customer_loss,
+        to_char(s.sale_date, 'YYYY - MM') AS selling_month
+    FROM sales AS s
+    INNER JOIN products AS p
+        ON s.product_id = p.product_id
+    INNER JOIN customers AS c
+        ON s.customer_id  = c.customer_id
+    GROUP BY c.first_name, c.last_name, s.sale_date
+),
+
+count_sum AS(
+    SELECT
+        selling_month,
+        count(customer) OVER (PARTITION BY selling_month) AS total_customers,
+        -- подсчет кол-ва покупателей --
+        sum(customer_loss) OVER (PARTITION BY selling_month) AS income,
+        -- подсчет выручки по каждому покупателю --
+        ROW_NUMBER () OVER (PARTITION BY selling_month) AS rn
+        -- для вывода только одной строчки --
+    FROM customers_loss
+    GROUP BY selling_month, customer, customer_loss
+)
+
+-- вывод финального результата --
+SELECT
+    selling_month,
+    total_customers,
+    income
+FROM count_sum
+WHERE rn = 1;
+
+--покупатели, первая покупка которых была во время акции
+--
+WITH temp_table AS (
+    SELECT
+        c.first_name || ' ' || c.last_name AS customer,
+        -- объединяет имя покупателя --
+        s.sale_date,
+        e.first_name || ' ' || e.last_name AS seller,
+        -- объединяет имя продавца --
+        p.price,
+        ROW_NUMBER() OVER (PARTITION BY c.first_name || ' ' || c.last_name, p.price ) AS rn
+    FROM sales AS s
+    -- обьединяем все таблицы в одну --
+    INNER JOIN products AS p
+        ON s.product_id = p.product_id
+    INNER JOIN customers AS c
+        ON s.customer_id  = c.customer_id
+    INNER JOIN employees AS e
+        ON s.sales_person_id = e.employee_id
+    GROUP BY c.first_name, c.last_name, s.sale_date, e.first_name, e.last_name, p.price
+)
+
+-- выводим результат где rn = 1(первая цена) и цена равна 0
+SELECT
+    customer,
+    sale_date,
+    seller
+FROM temp_table
+WHERE rn = 1 AND price = 0;
+
+
+
+
+
